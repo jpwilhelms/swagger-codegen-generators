@@ -359,6 +359,7 @@ public class SpringCodegen extends AbstractJavaCodegen implements BeanValidation
         }
 
         // add lambda for mustache templates
+        // TODO use handlebar registerHelper(), if handlebar is used
         additionalProperties.put("lambdaEscapeDoubleQuote", new Mustache.Lambda() {
             @Override
             public void execute(Template.Fragment fragment, Writer writer) throws IOException {

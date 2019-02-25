@@ -24,4 +24,21 @@ public class StringUtilHelper {
         return "\\";
     }
 
+    public String escapePattern( String text ) {
+        return text.replace("\\", "\\\\");
+    }
+
+    public String escapeDoubleQuote( String text ) {
+        if( text == null ) {
+            return "";
+        }
+        return text.replace( "\"", "\\\"" );
+    }
+
+    public String escapeJavaString( String text ) {
+        if( text == null ) {
+            return "";
+        }
+        return escapeDoubleQuote( text ).replaceAll( "[\r\n]+", " " );
+    }
 }
