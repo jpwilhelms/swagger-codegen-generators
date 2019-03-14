@@ -1890,7 +1890,7 @@ public abstract class DefaultCodegenConfig implements CodegenConfig {
             codegenOperation.getVendorExtensions().put(CodegenConstants.IS_DEPRECATED_EXT_NAME, operation.getDeprecated());
         }
 
-        addConsumesInfo(operation, codegenOperation);
+        addConsumesInfo(operation, codegenOperation, openAPI);
 
         if (operation.getResponses() != null && !operation.getResponses().isEmpty()) {
             ApiResponse methodResponse = findMethodResponse(operation.getResponses());
@@ -3752,8 +3752,9 @@ public abstract class DefaultCodegenConfig implements CodegenConfig {
             return null;
         }
         Schema schema = null;
-        for (MediaType mediaType : response.getContent().values()) {
-            schema = mediaType.getSchema();
+        for (String contentType : response.getContent().keySet()) {
+            schema = response.getContent().get(contentType).getSchema();
+            schema.addExtension("x-content-type", contentType);
             break;
         }
         return schema;
@@ -3805,11 +3806,21 @@ public abstract class DefaultCodegenConfig implements CodegenConfig {
         }
     }
 
-    protected void addConsumesInfo(Operation operation, CodegenOperation codegenOperation) {
-        if(operation.getRequestBody() == null || operation.getRequestBody().getContent() == null || operation.getRequestBody().getContent().isEmpty()) {
+    protected void addConsumesInfo(Operation operation, CodegenOperation codegenOperation, OpenAPI openAPI) {
+        RequestBody body = operation.getRequestBody();
+        if (body == null) {
             return;
         }
-        Set<String> consumes = operation.getRequestBody().getContent().keySet();
+        if (StringUtils.isNotBlank(body.get$ref())) {
+            String bodyName = OpenAPIUtil.getSimpleRef(body.get$ref());
+            body = openAPI.getComponents().getRequestBodies().get(bodyName);
+        }
+        
+        if (body.getContent() == null || body.getContent().isEmpty()) {
+            return;
+        }
+        
+        Set<String> consumes = body.getContent().keySet();
         List<Map<String, String>> mediaTypeList = new ArrayList<>();
         int count = 0;
         for (String key : consumes) {
@@ -3948,13 +3959,16 @@ public abstract class DefaultCodegenConfig implements CodegenConfig {
         return null;
     }
 
+    // See: https://swagger.io/docs/specification/serialization/#query
     protected String getCollectionFormat(Parameter parameter) {
-        if (Parameter.StyleEnum.FORM.equals(parameter.getStyle())) {
-            if (parameter.getExplode() != null && parameter.getExplode()) {
-                return "csv";
-            } else {
-                return "multi";
-            }
+        // "explode: true" is the default and always results in "multi", no matter the style.
+        if (parameter.getExplode() == null || parameter.getExplode()) {
+            return "multi";
+        }
+        
+        // Form is the default, if no style is specified.
+        if (parameter.getStyle() == null || Parameter.StyleEnum.FORM.equals(parameter.getStyle())) {
+            return "csv";
         }
         else if (Parameter.StyleEnum.PIPEDELIMITED.equals(parameter.getStyle())) {
             return "pipe";
